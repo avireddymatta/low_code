@@ -2,54 +2,101 @@ import * as NavigationBar from 'expo-navigation-bar';
 import { useColorScheme as useNativewindColorScheme } from 'nativewind';
 import * as React from 'react';
 import { Platform } from 'react-native';
-
 import { COLORS } from '~/theme/colors';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
-function useColorScheme() {
-  const { colorScheme, setColorScheme: setNativeWindColorScheme } = useNativewindColorScheme();
+type ColorScheme = 'light' | 'dark';
+const THEME_STORAGE_KEY = '@app_theme';
 
-  async function setColorScheme(colorScheme: 'light' | 'dark') {
-    setNativeWindColorScheme(colorScheme);
-    if (Platform.OS !== 'android') return;
-    try {
-      await setNavigationBar(colorScheme);
-    } catch (error) {
-      console.error('useColorScheme.tsx", "setColorScheme', error);
-    }
-  }
-
-  function toggleColorScheme() {
-    return setColorScheme(colorScheme === 'light' ? 'dark' : 'light');
-  }
-
-  return {
-    colorScheme: colorScheme ?? 'light',
-    isDarkColorScheme: colorScheme === 'dark',
-    setColorScheme,
-    toggleColorScheme,
-    colors: COLORS[colorScheme ?? 'light'],
-  };
+interface ColorSchemeContextValue {
+  colorScheme: ColorScheme;
+  isDarkColorScheme: boolean;
+  setColorScheme: (scheme: ColorScheme) => Promise<void>;
+  toggleColorScheme: () => Promise<void>;
+  colors: typeof COLORS.light | typeof COLORS.dark;
 }
 
-/**
- * Set the Android navigation bar color based on the color scheme.
- */
-function useInitialAndroidBarSync() {
+const ColorSchemeContext = React.createContext<ColorSchemeContextValue | undefined>(undefined);
+
+export function ColorSchemeProvider({ children }: { children: React.ReactNode }) {
+  const { colorScheme: nativeColorScheme, setColorScheme: setNativeWindColorScheme } = useNativewindColorScheme();
+  const [colorScheme, setColorScheme] = React.useState<ColorScheme>(nativeColorScheme ?? 'light');
+
+  const setScheme = React.useCallback(async (newScheme: ColorScheme) => {
+    setNativeWindColorScheme(newScheme);
+    setColorScheme(newScheme);
+    
+    if (Platform.OS === 'android') {
+      try {
+        await setNavigationBar(newScheme);
+      } catch (error) {
+        console.error('Error setting navigation bar:', error);
+      }
+    }
+  }, [setNativeWindColorScheme]);
+
+  const toggleScheme = React.useCallback(async () => {
+    const newScheme = colorScheme === 'light' ? 'dark' : 'light';
+    await setScheme(newScheme);
+  }, [colorScheme, setScheme]);
+
+  const value = React.useMemo(() => ({
+    colorScheme,
+    isDarkColorScheme: colorScheme === 'dark',
+    setColorScheme: setScheme,
+    toggleColorScheme: toggleScheme,
+    colors: COLORS[colorScheme],
+  }), [colorScheme, setScheme, toggleScheme]);
+
+  return (
+    <ColorSchemeContext.Provider value={value}>
+      {children}
+    </ColorSchemeContext.Provider>
+  );
+}
+
+export function useColorScheme() {
+  const context = React.useContext(ColorSchemeContext);
+  if (!context) {
+    throw new Error('useColorScheme must be used within a ColorSchemeProvider');
+  }
+  return context;
+}
+
+export function useInitialAndroidBarSync() {
   const { colorScheme } = useColorScheme();
+  
   React.useEffect(() => {
-    if (Platform.OS !== 'android') return;
-    setNavigationBar(colorScheme).catch((error) => {
-      console.error('useColorScheme.tsx", "useInitialColorScheme', error);
-    });
+    if (Platform.OS === 'android') {
+      setNavigationBar(colorScheme).catch((error) => {
+        console.error('Error syncing navigation bar:', error);
+      });
+    }
   }, [colorScheme]);
 }
 
-export { useColorScheme, useInitialAndroidBarSync };
-
-function setNavigationBar(colorScheme: 'light' | 'dark') {
+async function setNavigationBar(colorScheme: ColorScheme) {
   return Promise.all([
     NavigationBar.setButtonStyleAsync(colorScheme === 'dark' ? 'light' : 'dark'),
     NavigationBar.setPositionAsync('absolute'),
     NavigationBar.setBackgroundColorAsync(colorScheme === 'dark' ? '#00000030' : '#ffffff80'),
   ]);
+}
+
+async function loadSavedTheme(): Promise<ColorScheme | null> {
+  try {
+    const saved = await AsyncStorage.getItem(THEME_STORAGE_KEY);
+    return saved && isValidColorScheme(saved) ? saved : null;
+  } catch (error) {
+    console.error('Error loading theme:', error);
+    return null;
+  }
+}
+
+async function saveTheme(theme: ColorScheme): Promise<void> {
+  try {
+    await AsyncStorage.setItem(THEME_STORAGE_KEY, theme);
+  } catch (error) {
+    console.error('Error saving theme:', error);
+  }
 }
