@@ -100,3 +100,13 @@ const COLORS = {
 } as const;
 
 export { COLORS, BASE_COLORS, SEMANTIC_COLORS };
+
+export type ColorScheme = 'light' | 'dark';
+export type PlatformType = 'ios' | 'android';
+export type SemanticColorKey = keyof typeof SEMANTIC_COLORS;
+export type BaseColorKey = keyof typeof BASE_COLORS;
+
+// Type guard for color scheme validation
+export function isValidColorScheme(scheme: string): scheme is ColorScheme {
+  return scheme === 'light' || scheme === 'dark';
+}
