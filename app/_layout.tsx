@@ -1,27 +1,16 @@
 import '../global.css';
 import 'expo-dev-client';
 import { ThemeProvider as NavThemeProvider } from '@react-navigation/native';
-
 import { ActionSheetProvider } from '@expo/react-native-action-sheet';
-
 import { BottomSheetModalProvider } from '@gorhom/bottom-sheet';
-
 import { Stack } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
-
 import { ThemeToggle } from '~/components/ThemeToggle';
-import { useColorScheme, useInitialAndroidBarSync } from '~/lib/useColorScheme';
+import { ColorSchemeProvider, useColorScheme } from '~/lib/useColorScheme';
 import { NAV_THEME } from '~/theme';
 
-export {
-  // Catch any errors thrown by the Layout component.
-  ErrorBoundary,
-} from 'expo-router';
-
-export default function RootLayout() {
-  useInitialAndroidBarSync();
+function RootLayoutContent() {
   const { colorScheme, isDarkColorScheme } = useColorScheme();
 
   return (
@@ -30,9 +19,6 @@ export default function RootLayout() {
         key={`root-status-bar-${isDarkColorScheme ? 'light' : 'dark'}`}
         style={isDarkColorScheme ? 'light' : 'dark'}
       />
-      {/* WRAP YOUR APP WITH ANY ADDITIONAL PROVIDERS HERE */}
-      {/* <ExampleProvider> */}
-
       <GestureHandlerRootView style={{ flex: 1 }}>
         <BottomSheetModalProvider>
           <ActionSheetProvider>
@@ -45,14 +31,20 @@ export default function RootLayout() {
           </ActionSheetProvider>
         </BottomSheetModalProvider>
       </GestureHandlerRootView>
-
-      {/* </ExampleProvider> */}
     </>
   );
 }
 
+export default function RootLayout() {
+  return (
+    <ColorSchemeProvider>
+      <RootLayoutContent />
+    </ColorSchemeProvider>
+  );
+}
+
 const SCREEN_OPTIONS = {
-  animation: 'ios_from_right', // for android
+  animation: 'ios_from_right',
 } as const;
 
 const DRAWER_OPTIONS = {
@@ -61,7 +53,7 @@ const DRAWER_OPTIONS = {
 
 const MODAL_OPTIONS = {
   presentation: 'modal',
-  animation: 'fade_from_bottom', // for android
+  animation: 'fade_from_bottom',
   title: 'Settings',
   headerRight: () => <ThemeToggle />,
 } as const;
