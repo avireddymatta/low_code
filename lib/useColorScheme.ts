@@ -3,8 +3,10 @@ import { useColorScheme as useNativewindColorScheme } from 'nativewind';
 import * as React from 'react';
 import { Platform } from 'react-native';
 import { COLORS } from '~/theme/colors';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 
 type ColorScheme = 'light' | 'dark';
+const THEME_STORAGE_KEY = '@app_theme';
 
 interface ColorSchemeContextValue {
   colorScheme: ColorScheme;
@@ -79,4 +81,22 @@ async function setNavigationBar(colorScheme: ColorScheme) {
     NavigationBar.setPositionAsync('absolute'),
     NavigationBar.setBackgroundColorAsync(colorScheme === 'dark' ? '#00000030' : '#ffffff80'),
   ]);
+}
+
+async function loadSavedTheme(): Promise<ColorScheme | null> {
+  try {
+    const saved = await AsyncStorage.getItem(THEME_STORAGE_KEY);
+    return saved && isValidColorScheme(saved) ? saved : null;
+  } catch (error) {
+    console.error('Error loading theme:', error);
+    return null;
+  }
+}
+
+async function saveTheme(theme: ColorScheme): Promise<void> {
+  try {
+    await AsyncStorage.setItem(THEME_STORAGE_KEY, theme);
+  } catch (error) {
+    console.error('Error saving theme:', error);
+  }
 }
